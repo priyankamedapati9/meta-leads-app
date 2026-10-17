@@ -8,7 +8,14 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { WebBadge } from '@/components/web-badge';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-
+import { useEffect, useState } from 'react';
+import { io } from 'socket.io-client';
+type Lead = {
+  leadId: string;
+  name: string;
+  email: string;
+  createdTime: string;
+};
 function getDevMenuHint() {
   if (Platform.OS === 'web') {
     return <ThemedText type="small">use browser devtools</ThemedText>;
@@ -29,7 +36,31 @@ function getDevMenuHint() {
 }
 
 export default function HomeScreen() {
+  const [leads, setLeads] = useState<Lead[]>([]);
+
+useEffect(() => {
+  const socket = io('http://192.168.55.106:3000');
+
+  socket.on('existingLeads', (savedLeads: Lead[]) => {
+    setLeads(savedLeads);
+  });
+
+  socket.on('newLead', (lead: Lead) => {
+    setLeads((previousLeads) => {
+      if (previousLeads.some((item) => item.leadId === lead.leadId)) {
+        return previousLeads;
+      }
+
+      return [lead, ...previousLeads];
+    });
+  });
+
+  return () => {
+    socket.disconnect();
+  };
+}, []);
   return (
+    
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ThemedView style={styles.heroSection}>
@@ -42,7 +73,17 @@ export default function HomeScreen() {
         <ThemedText type="code" style={styles.code}>
           get started
         </ThemedText>
+        <ThemedText type="title">
+  Meta Leads ({leads.length})
+</ThemedText>
 
+{leads.map((lead) => (
+  <ThemedView key={lead.leadId} style={styles.stepContainer}>
+    <ThemedText type="subtitle">{lead.name || 'No name'}</ThemedText>
+    <ThemedText>{lead.email || 'No email'}</ThemedText>
+    <ThemedText type="small">{lead.createdTime}</ThemedText>
+  </ThemedView>
+))}
         <ThemedView type="backgroundElement" style={styles.stepContainer}>
           <HintRow
             title="Try editing"
